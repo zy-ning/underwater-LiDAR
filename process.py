@@ -1,7 +1,13 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-log_file = "data/raw_data_20251120_212543_dist130.log"
+log_dir = "data/20251129/100cm/water/"
+# list all log files in the directory
+
+log_files = [os.path.join(log_dir, f) for f in os.listdir(log_dir) if f.endswith(".log")]
+log_file = log_files[0]
 
 # Parse the log file
 photon_counts = []
@@ -54,13 +60,20 @@ peak_indices = []
 
 
 # Sliding Window Max
-BIAS = 2.11
+if "air" in log_file:
+    BIAS = 2.05
+    speed_of_light = 299792458  # meters per second
+elif "water" in log_file:
+    BIAS = 1.52
+    speed_of_light = 299792458 / 1.33  # meters per second
+
+
 SW_SIZE = 1600
 intervals = []
 for sw_idx in range(photon_counts.size // SW_SIZE):
     peak_indices.append(
         photon_counts[sw_idx * SW_SIZE : (sw_idx + 1) * SW_SIZE].argmax()
-        + sw_idx * SW_SIZE
+        # + sw_idx * SW_SIZE
     )
     if sw_idx > 0:
         intervals.append(peak_indices[-1] - peak_indices[-2])
@@ -71,9 +84,8 @@ print(peak_indices)
 
 # Calculate distance using first peak
 if peak_indices:
-    first_peak_bin = peak_indices[0]
+    first_peak_bin = np.mean(peak_indices)
     bin_resolution_ps = 104.17  # picoseconds per bin
-    speed_of_light = 299792458  # meters per second
 
     # Convert bin index to time (ps to seconds)
     time_of_flight_s = first_peak_bin * bin_resolution_ps * 1e-12
