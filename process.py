@@ -3,11 +3,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-log_dir = "data/20251129/100cm/water/"
+log_dir = "data/20251129/40cm/air/"
 # list all log files in the directory
 
 log_files = [os.path.join(log_dir, f) for f in os.listdir(log_dir) if f.endswith(".log")]
-log_file = log_files[0]
+log_file = log_files[1]
 
 # Parse the log file
 photon_counts = []
