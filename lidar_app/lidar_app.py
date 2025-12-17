@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import os
 import struct
 import sys
@@ -33,6 +34,11 @@ from train import (
 # Constants
 PERIOD_BINS = 1600
 
+# Global state storage to avoid pickling issues with Reflex
+global_ser = None
+global_model = None
+global_device = None
+
 class State(rx.State):
     # Connection Settings
     port: str = ""
@@ -54,16 +60,15 @@ class State(rx.State):
     distance_m: float = 0.0
     snr: float = 0.0
     confidence: float = 0.0
+    frame_count: int = 0
 
     # Internal
-    _ser: serial.Serial = None
-    _model = None
-    _device = None
     _running: bool = False
     _photon_buffer: list = []
 
     def on_load(self):
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        global global_device
+        global_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.refresh_ports()
         self.load_model()
 
@@ -77,20 +82,21 @@ class State(rx.State):
         self.load_model()
 
     def load_model(self):
+        global global_model, global_device
         try:
-            self._model = build_model(self.selected_model)
-            if self._model:
+            global_model = build_model(self.selected_model)
+            if global_model:
                 # Load checkpoint
                 ckpt_path = f"checkpoint_{self.selected_model}.pth"
                 if os.path.exists(ckpt_path):
-                    checkpoint = torch.load(ckpt_path, map_location=self._device)
+                    checkpoint = torch.load(ckpt_path, map_location=global_device)
                     # Handle different checkpoint formats if necessary
                     if 'model_state_dict' in checkpoint:
-                        self._model.load_state_dict(checkpoint['model_state_dict'])
+                        global_model.load_state_dict(checkpoint['model_state_dict'])
                     else:
-                        self._model.load_state_dict(checkpoint)
-                    self._model.to(self._device)
-                    self._model.eval()
+                        global_model.load_state_dict(checkpoint)
+                    global_model.to(global_device)
+                    global_model.eval()
                     self.status = f"Loaded {self.selected_model}"
                 else:
                     self.status = f"Checkpoint {ckpt_path} not found"
@@ -104,19 +110,21 @@ class State(rx.State):
             return self.connect()
 
     def disconnect(self):
+        global global_ser
         self._running = False
-        if self._ser and self._ser.is_open:
-            self._ser.close()
+        if global_ser and global_ser.is_open:
+            global_ser.close()
         self.is_connected = False
         self.status = "Disconnected"
 
     def connect(self):
+        global global_ser
         try:
             if not self.port:
                 self.status = "No port selected"
                 return
 
-            self._ser = serial.Serial(self.port, self.baud_rate, timeout=0.1)
+            global_ser = serial.Serial(self.port, self.baud_rate, timeout=0.1)
             self.is_connected = True
             self._running = True
             self.status = f"Connected to {self.port}"
@@ -126,6 +134,7 @@ class State(rx.State):
             self.is_connected = False
 
     async def read_loop(self):
+        global global_ser
         # Buffer for incoming bins
         # Note: In this recursive pattern, local variables like bin_buffer are lost between calls
         # We need to store bin_buffer in self or pass it around.
@@ -136,21 +145,21 @@ class State(rx.State):
 
         try:
             # Non-blocking read check
-            if self._ser and self._ser.in_waiting > 0:
+            if global_ser and global_ser.in_waiting > 0:
                 # Read header
-                b1 = self._ser.read(1)
+                b1 = global_ser.read(1)
                 if b1 == b'\xaa':
-                    b2 = self._ser.read(1)
+                    b2 = global_ser.read(1)
 
                     if b2 == b'\xf1': # Histogram Data
                         # Read Length (2 bytes)
-                        len_bytes = self._ser.read(2)
+                        len_bytes = global_ser.read(2)
                         if len(len_bytes) == 2:
                             payload_len = (len_bytes[0] << 8) | len_bytes[1]
 
                             # Read Payload + CRC
-                            payload = self._ser.read(payload_len)
-                            crc_byte = self._ser.read(1)
+                            payload = global_ser.read(payload_len)
+                            crc_byte = global_ser.read(1)
 
                             if len(payload) == payload_len:
                                 # Payload = Index(1) + StartPos(4) + RawData(...)
@@ -171,6 +180,11 @@ class State(rx.State):
 
                                 self._photon_buffer.extend(new_bins)
 
+                                # Safety check for buffer size
+                                if len(self._photon_buffer) > PERIOD_BINS * 10:
+                                    self._photon_buffer = []
+                                    print("Buffer overflow, clearing buffer")
+
                                 # Check if we have enough for a full period
                                 if len(self._photon_buffer) >= PERIOD_BINS:
                                     # Take one period
@@ -181,7 +195,7 @@ class State(rx.State):
                                     await self.process_frame(current_period)
 
                     elif b2 == b'\x0f': # Distance Data (Optional, we calculate our own)
-                        self._ser.read(8) # Consume
+                        global_ser.read(8) # Consume
 
         except Exception as e:
             print(f"Serial Error: {e}")
@@ -192,19 +206,20 @@ class State(rx.State):
             return State.read_loop
 
     async def process_frame(self, photon_counts):
+        global global_model, global_device
         # Run inference
         try:
             counts_array = np.array(photon_counts)
 
             # Preprocess
             # preprocess_real_data expects numpy array
-            input_tensor = preprocess_real_data(counts_array).to(self._device)
+            input_tensor = preprocess_real_data(counts_array).to(global_device)
 
             # Inference
-            if self._model:
+            if global_model:
                 with torch.no_grad():
                     # Match eval_real.py: direct output, no extra sigmoid unless model has it
-                    prediction = self._model(input_tensor).cpu().numpy()[0, 0]
+                    prediction = global_model(input_tensor).cpu().numpy()[0, 0]
             else:
                 prediction = np.zeros_like(counts_array, dtype=float)
 
@@ -239,6 +254,14 @@ class State(rx.State):
                 }
                 for i in range(0, len(counts_array), 4) # Downsample by 4 for UI performance
             ]
+
+            # Periodic cleanup
+            self.frame_count += 1
+            if self.frame_count % 50 == 0:
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
         except Exception as e:
             print(f"Processing Error: {e}")
 
