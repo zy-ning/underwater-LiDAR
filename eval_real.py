@@ -1,13 +1,22 @@
 import argparse
 import glob
 import os
+import re
 from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from train import MobileNet1D, Performer1D, ResNet1D, Transformer1D, UNet1D, mc_predict
+from train import (
+    Longformer1D,
+    MobileNet1D,
+    Performer1D,
+    ResNet1D,
+    Transformer1D,
+    UNet1D,
+    mc_predict,
+)
 
 
 def parse_log_file(log_file, period_bins=1600):
@@ -78,6 +87,8 @@ def preprocess_real_data(photon_counts):
 
 def build_model(model_name, dropout=0.1):
     """Create an inference model instance based on a string name."""
+    if model_name == "sliding_max":
+        return None  # handled separately as a non-learned baseline
     if model_name == "unet":
         return UNet1D(p_drop=0.0)
     if model_name == "mcd_unet":
@@ -90,7 +101,20 @@ def build_model(model_name, dropout=0.1):
         return Transformer1D(L=1600)
     if model_name == "performer":
         return Performer1D(L=1600)
+    if model_name == "longformer":
+        return Longformer1D(L=1600)
     raise ValueError(f"Unknown model name: {model_name}")
+
+
+def infer_distance_cm_from_path(path):
+    """Extract ground-truth distance (cm) from a path component like '25cm'."""
+    match = re.search(r"(\d+(?:\.\d+)?)\s*cm", path, re.IGNORECASE)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return None
+    return None
 
 
 def run_recursive_kalman(
@@ -203,6 +227,26 @@ def run_recursive_kalman(
     return x_est, P_est
 
 
+def collect_benchmark_logs():
+    """Collect benchmark log files with ground-truth distances from default dataset config."""
+    patterns = [
+        ("data/20251129/*/water/**/*.log", (10, 100)),
+        ("data/20251213/*/water/turbid0/**/*.log", (10, 80)),
+        ("data/20251213/*/water/turbid1/**/*.log", (10, 50)),
+        ("data/20251213/*/water/turbid2/**/*.log", (10, 30)),
+    ]
+    entries = {}
+    for pattern, (lo, hi) in patterns:
+        for f in glob.glob(pattern, recursive=True):
+            gt = infer_distance_cm_from_path(f)
+            if gt is None:
+                continue
+            if gt < lo or gt > hi:
+                continue
+            entries[f] = gt
+    return [{"path": p, "gt_cm": gt} for p, gt in entries.items()]
+
+
 def extract_distance_from_prediction(
     prediction,
     bin_resolution_ps=104.17,
@@ -289,7 +333,12 @@ def extract_distance_from_prediction(
 
 
 def evaluate_single_file(
-    model, log_file, device, aggregation="pre_avg", model_name="unet", mc_samples=30
+    model,
+    log_file,
+    device,
+    aggregation="pre_avg",
+    model_name="unet",
+    mc_samples=30,
 ):
     """
     Evaluate model on a single log file.
@@ -317,8 +366,18 @@ def evaluate_single_file(
     # Parse log file
     periods, averaged_counts = parse_log_file(log_file)
 
-    # Choose aggregation strategy
-    if aggregation == "pre_avg":
+    # Sliding-window max baseline (no model)
+    if model_name == "sliding_max":
+        peak_bin = int(np.argmax(averaged_counts))
+        prediction = np.zeros_like(averaged_counts, dtype=np.float32)
+        prediction[peak_bin] = 1.0
+        metrics = extract_distance_from_prediction(
+            prediction, speed_of_light=speed_of_light, distance_bias=distance_bias, forced_peak_bin=peak_bin
+        )
+        photon_counts = averaged_counts
+
+    # Choose aggregation strategy for learned models
+    elif aggregation == "pre_avg":
         input_tensor = preprocess_real_data(averaged_counts).to(device)
         model.eval()
         with torch.no_grad():
@@ -411,7 +470,7 @@ def evaluate_single_file(
     return photon_counts, prediction, metrics, filename
 
 
-def plot_result(photon_counts, prediction, metrics, filename, save_path=None):
+def plot_result(photon_counts, prediction, metrics, filename, save_path=None, model_name="Model"):
     """
     Plot input and output for a single file.
 
@@ -437,7 +496,7 @@ def plot_result(photon_counts, prediction, metrics, filename, save_path=None):
     ax1.grid(alpha=0.3)
 
     # Plot 2: Model prediction
-    ax2.plot(bins, prediction, color="red", linewidth=2, label="U-Net Prediction")
+    ax2.plot(bins, prediction, color="red", linewidth=2, label=f"{model_name} Prediction")
     ax2.axvline(
         metrics["peak_bin"],
         color="blue",
@@ -460,7 +519,7 @@ def plot_result(photon_counts, prediction, metrics, filename, save_path=None):
 
     ax2.set_xlabel("Bin Number")
     ax2.set_ylabel("Probability")
-    ax2.set_title("U-Net Output - Distance Estimate (Top-P Filtering)")
+    ax2.set_title(f"{model_name} Output - Distance Estimate (Top-P Filtering)")
     ax2.legend()
     ax2.grid(alpha=0.3)
 
@@ -513,7 +572,7 @@ def main():
         "--models",
         type=str,
         default="unet",
-        help="Comma-separated models to evaluate: unet,mcd_unet,resnet,mobilenet,transformer,performer",
+        help="Comma-separated models to evaluate: unet,mcd_unet,resnet,mobilenet,transformer,performer,longformer,sliding_max (baseline)",
     )
     parser.add_argument(
         "--dropout", type=float, default=0.1, help="Dropout prob for mcd_unet"
@@ -530,6 +589,17 @@ def main():
         default="pre_avg",
         choices=["pre_avg", "post_avg", "maj_vote", "kalman"],
         help="Histogram aggregation across periods",
+    )
+    parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Enable benchmark mode with predefined datasets and ground-truth parsing",
+    )
+    parser.add_argument(
+        "--acc-threshold-cm",
+        type=float,
+        default=2.0,
+        help="Distance error threshold (cm) for accuracy percentage",
     )
     parser.add_argument(
         "--log-file",
@@ -573,15 +643,23 @@ def main():
     # refractive_index = 1.33 if args.medium == 'water' else 1.0
     # print(f"Medium: {args.medium} (n={refractive_index})")
 
-    # Find log files
-    if args.log_file:
-        log_files = [args.log_file]
-    else:
-        log_files = glob.glob(os.path.join(args.log_dir, "**", "*.log"), recursive=True)
-        if not log_files:
-            print(f"No .log files found in {args.log_dir}")
+    # Find log files (with optional benchmark dataset filtering and ground truth)
+    if args.benchmark:
+        log_entries = collect_benchmark_logs()
+        if not log_entries:
+            print("No benchmark log files found with ground-truth distances.")
             return
-        print(f"Found {len(log_files)} log files")
+        print(f"Benchmark mode: found {len(log_entries)} log files with ground truth")
+    else:
+        if args.log_file:
+            log_entries = [{"path": args.log_file, "gt_cm": infer_distance_cm_from_path(args.log_file)}]
+        else:
+            paths = glob.glob(os.path.join(args.log_dir, "**", "*.log"), recursive=True)
+            if not paths:
+                print(f"No .log files found in {args.log_dir}")
+                return
+            log_entries = [{"path": p, "gt_cm": infer_distance_cm_from_path(p)} for p in paths]
+        print(f"Found {len(log_entries)} log files")
 
     # Evaluate each requested model independently
     for model_name in args.models_list:
@@ -590,27 +668,27 @@ def main():
         print(f"{'=' * 70}")
 
         checkpoint_path = args.checkpoint_template.format(model=model_name)
-        if not os.path.exists(checkpoint_path):
-            print(f"Checkpoint missing for {model_name}: {checkpoint_path}")
-            continue
+        model = build_model(model_name, dropout=args.dropout)
+        if model_name != "sliding_max":
+            if not os.path.exists(checkpoint_path):
+                print(f"Checkpoint missing for {model_name}: {checkpoint_path}")
+                continue
+            model = model.to(device)
+            model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+            print(f"Loaded checkpoint from {checkpoint_path}")
 
-        model = build_model(model_name, dropout=args.dropout).to(device)
-        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
-        print(f"Loaded checkpoint from {checkpoint_path}")
-
-        model_output_dir = (
-            args.output_dir
-            if len(args.models_list) == 1
-            else os.path.join(args.output_dir, model_name)
-        )
+        model_output_dir = os.path.join(args.output_dir, model_name, args.aggregation)
         if not args.show_plots:
             os.makedirs(model_output_dir, exist_ok=True)
 
         results = []
+        errors_cm = []
 
-        for i, log_file in enumerate(log_files):
+        for i, entry in enumerate(log_entries):
+            log_file = entry["path"]
+            gt_cm = entry.get("gt_cm")
             print(
-                f"\n[{i + 1}/{len(log_files)}] Processing: {os.path.basename(log_file)}"
+                f"\n[{i + 1}/{len(log_entries)}] Processing: {os.path.basename(log_file)}"
             )
 
             try:
@@ -623,26 +701,37 @@ def main():
                     mc_samples=args.mc_samples,
                 )
 
-                print(f"  Distance:       {metrics['distance_m'] * 100:6.2f} cm")
+                pred_cm = metrics["distance_m"] * 100
+                if gt_cm is not None:
+                    error_cm = pred_cm - gt_cm
+                    errors_cm.append(error_cm)
+                else:
+                    error_cm = None
+
+                print(f"  Distance:       {pred_cm:6.2f} cm")
                 print(f"  Peak Bin:       {metrics['peak_bin']:6d}")
                 print(f"  SNR:            {metrics['snr']:6.2f}")
                 print(f"  Peak Value:     {metrics['peak_value']:6.4f}")
                 print(f"  Candidates:     {metrics['num_candidates']:6d}")
+                if gt_cm is not None:
+                    print(f"  GT Distance:    {gt_cm:6.2f} cm | Error: {error_cm if error_cm is not None else float('nan'):6.2f} cm")
 
                 if args.show_plots:
-                    plot_result(photon_counts, prediction, metrics, filename)
+                    plot_result(photon_counts, prediction, metrics, filename, model_name=model_name)
                 else:
                     save_name = (
                         os.path.splitext(filename)[0] + f"_{model_name}_eval.png"
                     )
                     save_path = os.path.join(model_output_dir, save_name)
-                    plot_result(photon_counts, prediction, metrics, filename, save_path)
+                    plot_result(photon_counts, prediction, metrics, filename, save_path, model_name=model_name)
 
                 results.append(
                     {
                         "model": model_name,
                         "filename": filename,
-                        "distance_cm": metrics["distance_m"] * 100,
+                        "distance_cm": pred_cm,
+                        "gt_cm": gt_cm,
+                        "error_cm": error_cm,
                         "peak_bin": metrics["peak_bin"],
                         "snr": metrics["snr"],
                         "peak_value": metrics["peak_value"],
@@ -674,6 +763,23 @@ def main():
             print(f"  Mean:   {np.mean(snrs):6.2f}")
             print(f"  Median: {np.median(snrs):6.2f}")
             print(f"  Std:    {np.std(snrs):6.2f}")
+
+            # Benchmark accuracy metrics (only when ground truth is available)
+            if args.benchmark and errors_cm:
+                errors_arr = np.array(errors_cm)
+                bias = np.mean(errors_arr)
+                mse = np.mean(errors_arr ** 2)
+                rmse = np.sqrt(mse)
+                centered_rmse = np.sqrt(np.mean((errors_arr - bias) ** 2))
+                acc_thresh = args.acc_threshold_cm
+                acc_pct = 100.0 * np.mean(np.abs(errors_arr) < acc_thresh)
+
+                print("\nBenchmark Accuracy (cm):")
+                print(f"  Bias (mean error):     {bias:6.3f}")
+                print(f"  MSE:                   {mse:6.3f}")
+                print(f"  RMSE:                  {rmse:6.3f}")
+                print(f"  Centered RMSE:         {centered_rmse:6.3f}")
+                print(f"  Acc@<{acc_thresh:.1f}cm:        {acc_pct:6.2f}%")
 
             if not args.show_plots:
                 import csv

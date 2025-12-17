@@ -1,0 +1,85 @@
+MCD U-Net
+Kalman
+Benchmark Accuracy (cm):
+  Bias (mean error):      4.855
+  MSE:                   5779.415
+  RMSE:                  76.022
+  Centered RMSE:         75.867
+  Acc@<2.0cm:         66.67%
+
+MCD U-Net
+Pre
+Benchmark Accuracy (cm):
+  Bias (mean error):     79.159
+  MSE:                   52105.685
+  RMSE:                  228.267
+  Centered RMSE:         214.102
+  Acc@<2.0cm:         62.28%
+
+MCD U-Net
+Major
+Benchmark Accuracy (cm):
+  Bias (mean error):     98.984
+  MSE:                   95986.638
+  RMSE:                  309.817
+  Centered RMSE:         293.579
+  Acc@<2.0cm:         57.02%
+
+MCD U-Net
+Post
+Benchmark Accuracy (cm):
+  Bias (mean error):     131.847
+  MSE:                   116357.889
+  RMSE:                  341.113
+  Centered RMSE:         314.602
+  Acc@<2.0cm:         56.14%
+
+
+U-Net
+Benchmark Accuracy (cm):
+  Bias (mean error):     66.976
+  MSE:                   59568.803
+  RMSE:                  244.067
+  Centered RMSE:         234.698
+  Acc@<2.0cm:         64.91%
+
+Resnet
+Benchmark Accuracy (cm):
+  Bias (mean error):     101.270
+  MSE:                   111310.479
+  RMSE:                  333.632
+  Centered RMSE:         317.891
+  Acc@<2.0cm:         61.40%
+
+MobileNet
+Benchmark Accuracy (cm):
+  Bias (mean error):     -81.478
+  MSE:                   12168.288
+  RMSE:                  110.310
+  Centered RMSE:         74.362
+  Acc@<2.0cm:          2.63%
+
+Performer
+Benchmark Accuracy (cm):
+  Bias (mean error):      4.258
+  MSE:                   1006.409
+  RMSE:                  31.724
+  Centered RMSE:         31.437
+  Acc@<2.0cm:         68.42%
+
+Transformer
+Benchmark Accuracy (cm):
+  Bias (mean error):     12.239
+  MSE:                   2060.900
+  RMSE:                  45.397
+  Centered RMSE:         43.716
+  Acc@<2.0cm:         61.40%
+
+SWM
+Benchmark Accuracy (cm):
+  Bias (mean error):     143.144
+  MSE:                   140328.705
+  RMSE:                  374.605
+  Centered RMSE:         346.177
+  Acc@<2.0cm:         61.40%
+

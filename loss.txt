@@ -1,0 +1,109 @@
+Validation Metrics for mlp
+2025-12-14 09:52:04,924 [INFO]   avg_val_loss: 0.00005854
+2025-12-14 09:52:04,924 [INFO]   mean_error_bins: 177.92755389
+2025-12-14 09:52:04,924 [INFO]   median_error_bins: 117.00000000
+2025-12-14 09:52:04,924 [INFO]   rmse_bins: 264.67325618
+2025-12-14 09:52:04,924 [INFO]   std_error_bins: 195.94315019
+2025-12-14 09:52:04,924 [INFO]   mae_bins: 177.92755389
+2025-12-14 09:52:04,924 [INFO]   mean_error_m: 2.09038120
+2025-12-14 09:52:04,924 [INFO]   median_error_m: 1.37457406
+2025-12-14 09:52:04,924 [INFO]   rmse_m: 3.10951276
+2025-12-14 09:52:04,924 [INFO]   snr_improvement: 1.15931785
+
+Validation Metrics for resnet
+2025-12-14 09:56:07,594 [INFO]   avg_val_loss: 0.00001139
+2025-12-14 09:56:07,594 [INFO]   mean_error_bins: 107.21649923
+2025-12-14 09:56:07,594 [INFO]   median_error_bins: 0.59757326
+2025-12-14 09:56:07,594 [INFO]   rmse_bins: 262.25792571
+2025-12-14 09:56:07,594 [INFO]   std_error_bins: 239.34043096
+2025-12-14 09:56:07,594 [INFO]   mae_bins: 107.21649923
+2025-12-14 09:56:07,594 [INFO]   mean_error_m: 1.25963264
+2025-12-14 09:56:07,594 [INFO]   median_error_m: 0.00702059
+2025-12-14 09:56:07,594 [INFO]   rmse_m: 3.08113625
+2025-12-14 09:56:07,595 [INFO]   snr_improvement: 62.65804291
+
+Validation Metrics for transformer
+2025-12-14 10:32:46,212 [INFO]   avg_val_loss: 0.00000963
+2025-12-14 10:32:46,212 [INFO]   mean_error_bins: 6.38265643
+2025-12-14 10:32:46,212 [INFO]   median_error_bins: 0.55380308
+2025-12-14 10:32:46,212 [INFO]   rmse_bins: 17.61417357
+2025-12-14 10:32:46,212 [INFO]   std_error_bins: 16.41708889
+2025-12-14 10:32:46,212 [INFO]   mae_bins: 6.38265643
+2025-12-14 10:32:46,212 [INFO]   mean_error_m: 0.07498662
+2025-12-14 10:32:46,212 [INFO]   median_error_m: 0.00650635
+2025-12-14 10:32:46,212 [INFO]   rmse_m: 0.20694005
+2025-12-14 10:32:46,212 [INFO]   snr_improvement: 17921.24804688
+
+Validation Metrics for lenet
+2025-12-14 10:34:19,257 [INFO]   avg_val_loss: 0.00001002
+2025-12-14 10:34:19,257 [INFO]   mean_error_bins: 6.38892255
+2025-12-14 10:34:19,257 [INFO]   median_error_bins: 0.56180900
+2025-12-14 10:34:19,257 [INFO]   rmse_bins: 16.97580702
+2025-12-14 10:34:19,257 [INFO]   std_error_bins: 15.72767283
+2025-12-14 10:34:19,257 [INFO]   mae_bins: 6.38892255
+2025-12-14 10:34:19,257 [INFO]   mean_error_m: 0.07506023
+2025-12-14 10:34:19,257 [INFO]   median_error_m: 0.00660041
+2025-12-14 10:34:19,257 [INFO]   rmse_m: 0.19944020
+2025-12-14 10:34:19,257 [INFO]   snr_improvement: 209.30137634
+
+Validation Metrics for mobilenet
+2025-12-14 10:39:24,330 [INFO]   avg_val_loss: 0.00003277
+2025-12-14 10:39:24,330 [INFO]   mean_error_bins: 12.94418972
+2025-12-14 10:39:24,330 [INFO]   median_error_bins: 7.09408584
+2025-12-14 10:39:24,330 [INFO]   rmse_bins: 20.74821970
+2025-12-14 10:39:24,330 [INFO]   std_error_bins: 16.21531909
+2025-12-14 10:39:24,330 [INFO]   mae_bins: 12.94418972
+2025-12-14 10:39:24,330 [INFO]   mean_error_m: 0.15207476
+2025-12-14 10:39:24,330 [INFO]   median_error_m: 0.08334484
+2025-12-14 10:39:24,330 [INFO]   rmse_m: 0.24376038
+2025-12-14 10:39:24,330 [INFO]   snr_improvement: 11.27657509
+
+Validation Metrics for performer
+2025-12-14 10:45:14,410 [INFO]   avg_val_loss: 0.00001113
+2025-12-14 10:45:14,410 [INFO]   mean_error_bins: 6.47309429
+2025-12-14 10:45:14,410 [INFO]   median_error_bins: 0.56228832
+2025-12-14 10:45:14,410 [INFO]   rmse_bins: 17.35818334
+2025-12-14 10:45:14,410 [INFO]   std_error_bins: 16.10607274
+2025-12-14 10:45:14,410 [INFO]   mae_bins: 6.47309429
+2025-12-14 10:45:14,410 [INFO]   mean_error_m: 0.07604912
+2025-12-14 10:45:14,410 [INFO]   median_error_m: 0.00660604
+2025-12-14 10:45:14,410 [INFO]   rmse_m: 0.20393255
+2025-12-14 10:45:14,410 [INFO]   snr_improvement: 2009.82519531
+
+
+Validation Metrics for longformer
+2025-12-14 11:23:57,125 [INFO]   avg_val_loss: 0.00000948
+2025-12-14 11:23:57,125 [INFO]   mean_error_bins: 6.23869567
+2025-12-14 11:23:57,125 [INFO]   median_error_bins: 0.48546499
+2025-12-14 11:23:57,126 [INFO]   rmse_bins: 17.03845012
+2025-12-14 11:23:57,126 [INFO]   std_error_bins: 15.85520289
+2025-12-14 11:23:57,126 [INFO]   mae_bins: 6.23869567
+2025-12-14 11:23:57,126 [INFO]   mean_error_m: 0.07329529
+2025-12-14 11:23:57,126 [INFO]   median_error_m: 0.00570348
+2025-12-14 11:23:57,126 [INFO]   rmse_m: 0.20017617
+2025-12-14 11:23:57,126 [INFO]   snr_improvement: 3184.16308594
+
+Validation Metrics for unet
+2025-12-14 11:28:13,806 [INFO]   avg_val_loss: 0.00001039
+2025-12-14 11:28:13,806 [INFO]   mean_error_bins: 28.41168984
+2025-12-14 11:28:13,806 [INFO]   median_error_bins: 0.61614842
+2025-12-14 11:28:13,806 [INFO]   rmse_bins: 109.67637084
+2025-12-14 11:28:13,806 [INFO]   std_error_bins: 105.93244168
+2025-12-14 11:28:13,806 [INFO]   mae_bins: 28.41168984
+2025-12-14 11:28:13,806 [INFO]   mean_error_m: 0.33379463
+2025-12-14 11:28:13,806 [INFO]   median_error_m: 0.00723882
+2025-12-14 11:28:13,806 [INFO]   rmse_m: 1.28853243
+2025-12-14 11:28:13,806 [INFO]   snr_improvement: 152.18579102
+
+Validation Metrics for mcd_unet
+2025-12-15 12:14:37,695 [INFO]   avg_val_loss: 0.00000936
+2025-12-15 12:14:37,695 [INFO]   mean_error_bins: 26.19136656
+2025-12-15 12:14:37,695 [INFO]   median_error_bins: 0.50461235
+2025-12-15 12:14:37,695 [INFO]   rmse_bins: 107.87499054
+2025-12-15 12:14:37,695 [INFO]   std_error_bins: 104.64714952
+2025-12-15 12:14:37,695 [INFO]   mae_bins: 26.19136656
+2025-12-15 12:14:37,695 [INFO]   mean_error_m: 0.30770917
+2025-12-15 12:14:37,695 [INFO]   median_error_m: 0.00592844
+2025-12-15 12:14:37,695 [INFO]   rmse_m: 1.26736892
+2025-12-15 12:14:37,695 [INFO]   snr_improvement: 1366.90917969
+2025-12-15 12:14:37,695 [INFO]   dist_uncertainty_m: 0.13254671
